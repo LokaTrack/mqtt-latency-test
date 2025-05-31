@@ -1,0 +1,20 @@
+[project]
+name = "mqtt-latency-test"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "quileon",email = "121283381+quileon@users.noreply.github.com"}
+]
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi[standard] (>=0.115.12,<0.116.0)"
+]
+
+[tool.poetry]
+package-mode = false
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
