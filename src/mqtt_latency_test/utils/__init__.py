@@ -4,6 +4,7 @@ from .database import (
     create_connection,
     close_connection,
     insert_first_case_data,
+    insert_second_case_data,
     initialize_database,
 )
 
@@ -15,5 +16,6 @@ __all__ = [
     "create_connection",
     "close_connection",
     "insert_first_case_data",
+    "insert_second_case_data",
     "initialize_database",
 ]

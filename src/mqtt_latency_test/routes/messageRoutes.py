@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Request
-from ..handlers import save_message_published
+from ..handlers import save_message_published, save_message_subscribed
 from ..utils import (
     ntp_sync,
     get_ntp_timestamp,
@@ -28,6 +28,22 @@ async def message_published(request: Request):
             return {"status": "error", "message": "No payload found in request data"}
 
         result = await save_message_published(payload)
+        return result
+    except Exception as e:
+        logger.debug(f"Error processing request: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@router.post("/subscribe")
+async def message_subscribed(request: Request):
+    try:
+        data = await request.json()
+
+        payload = data.get("payload")
+        if not payload:
+            return {"status": "error", "message": "No payload found in request data"}
+
+        result = await save_message_subscribed(payload)
         return result
     except Exception as e:
         logger.debug(f"Error processing request: {e}")

@@ -62,6 +62,28 @@ def create_first_case_table(conn: sqlite3.Connection):
         logger.debug(f"Error creating table: {e}")
 
 
+def create_second_case_table(conn: sqlite3.Connection):
+    """Create the second_case table if it doesn't exist."""
+
+    create_table_sql = """
+    CREATE TABLE IF NOT EXISTS second_case (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        iteration INTEGER,
+        server_timestamp_iso TEXT,
+        server_timestamp_epoch REAL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    """
+
+    try:
+        cursor = conn.cursor()
+        cursor.execute(create_table_sql)
+        conn.commit()
+        logger.debug("Table 'second_case' created successfully.")
+    except sqlite3.Error as e:
+        logger.debug(f"Error creating table: {e}")
+
+
 def insert_first_case_data(
     conn: sqlite3.Connection,
     iteration: Optional[int],
@@ -112,7 +134,52 @@ def insert_first_case_data(
             ),
         )
         conn.commit()
-        logger.debug(f"Data inserted successfully. Row ID: {cursor.lastrowid}")
+        logger.debug(f"Case 1 data inserted successfully. Row ID: {cursor.lastrowid}")
+        return True
+    except sqlite3.Error as e:
+        logger.debug(f"Error inserting data: {e}")
+        return False
+
+
+def insert_second_case_data(
+    conn: sqlite3.Connection,
+    iteration: Optional[int],
+    server_timestamp_iso: Optional[str],
+    server_timestamp_epoch: Optional[float],
+) -> bool:
+    """
+    Insert data into the second_case table.
+
+    Args:
+        conn: Database connection
+        iteration: Iteration number from the payload
+        server_timestamp_iso: ISO timestamp from server
+        server_timestamp_epoch: Epoch timestamp from server
+
+    Returns:
+        bool: True if successful, False otherwise
+    """
+
+    insert_sql = """
+    INSERT INTO second_case (
+        iteration, 
+        server_timestamp_iso, 
+        server_timestamp_epoch
+    ) VALUES (?, ?, ?);
+    """
+
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            insert_sql,
+            (
+                iteration,
+                server_timestamp_iso,
+                server_timestamp_epoch,
+            ),
+        )
+        conn.commit()
+        logger.debug(f"Case 2 data inserted successfully. Row ID: {cursor.lastrowid}")
         return True
     except sqlite3.Error as e:
         logger.debug(f"Error inserting data: {e}")
@@ -128,6 +195,7 @@ def initialize_database(db_file: Optional[str] = None):
     conn = create_connection(db_file)
     if conn:
         create_first_case_table(conn)
+        create_second_case_table(conn)
         close_connection(conn)
         return True
     return False

@@ -16,7 +16,7 @@ if not MQTT_ENCRYPTION_KEY:
 HEX_MQTT_ENCRYPTION_KEY = binascii.unhexlify(MQTT_ENCRYPTION_KEY)
 
 
-def decrypt_message(encrypted_hex_message: str, key=HEX_MQTT_ENCRYPTION_KEY):
+def decrypt_message(encrypted_hex_message: str, key=HEX_MQTT_ENCRYPTION_KEY) -> dict:
     """
     Decrypts a hex-encoded ChaCha20 encrypted message.
     Args:
@@ -25,6 +25,7 @@ def decrypt_message(encrypted_hex_message: str, key=HEX_MQTT_ENCRYPTION_KEY):
     Returns:
         dict: The decrypted JSON payload.
     Raises:
+        ValueError: If the hex message format is invalid or decryption fails.
         UnicodeDecodeError: If the decrypted bytes cannot be decoded as UTF-8.
         json.JSONDecodeError: If the decrypted message is not valid JSON.
     """
@@ -101,58 +102,59 @@ def decrypt_message(encrypted_hex_message: str, key=HEX_MQTT_ENCRYPTION_KEY):
 
     try:
         encrypted_message = binascii.unhexlify(encrypted_hex_message)
+    except (ValueError, binascii.Error) as e:
+        raise ValueError(f"Invalid hex string format: {e}") from e
 
-        iv = encrypted_message[:8]
-        counter_bytes = encrypted_message[8:16]
-        ciphertext = encrypted_message[16:]
+    if len(encrypted_message) < 16:
+        raise ValueError(
+            f"Encrypted message too short: {len(encrypted_message)} bytes, minimum 16 required"
+        )
 
-        # print(f"IV: {iv.hex()}")
-        # print(f"Counter: {counter_bytes.hex()}")
-        # print(f"Ciphertext: {ciphertext.hex()}")
-        # print(f"Ciphertext length: {len(ciphertext)} bytes")
+    iv = encrypted_message[:8]
+    counter_bytes = encrypted_message[8:16]
+    ciphertext = encrypted_message[16:]
 
-        # Get the starting counter value as a 64-bit integer
-        counter_value = int.from_bytes(counter_bytes, byteorder="little")
+    # print(f"IV: {iv.hex()}")
+    # print(f"Counter: {counter_bytes.hex()}")
+    # print(f"Ciphertext: {ciphertext.hex()}")
+    # print(f"Ciphertext length: {len(ciphertext)} bytes")
 
-        # Create an empty buffer for the keystream
-        keystream = bytearray()
+    # Get the starting counter value as a 64-bit integer
+    counter_value = int.from_bytes(counter_bytes, byteorder="little")
 
-        # Generate keystream blocks for each 64-byte chunk of ciphertext
-        blocks_needed = (len(ciphertext) + 63) // 64  # Ceiling division
+    # Create an empty buffer for the keystream
+    keystream = bytearray()
 
-        for block in range(blocks_needed):
-            # Generate keystream block with current counter value
-            keystream_block = chacha20_block(key, counter_value + block, iv)
-            keystream.extend(keystream_block)
+    # Generate keystream blocks for each 64-byte chunk of ciphertext
+    blocks_needed = (len(ciphertext) + 63) // 64  # Ceiling division
 
-        # Trim keystream to match ciphertext length
-        keystream = keystream[: len(ciphertext)]
+    for block in range(blocks_needed):
+        # Generate keystream block with current counter value
+        keystream_block = chacha20_block(key, counter_value + block, iv)
+        keystream.extend(keystream_block)
 
-        # XOR keystream with ciphertext to get plaintext
-        decrypted_bytes = strxor(ciphertext, keystream)
+    # Trim keystream to match ciphertext length
+    keystream = keystream[: len(ciphertext)]
 
-        try:
-            # Try to decode as UTF-8
-            decrypted_message = decrypted_bytes.decode("utf-8")
-            logger.debug(f"Decrypted message: {decrypted_message}")
+    # XOR keystream with ciphertext to get plaintext
+    decrypted_bytes = strxor(ciphertext, keystream)
 
-        except UnicodeDecodeError as e:
-            # If UTF-8 decoding fails, log the error and hex dump for debugging
-            logger.debug(f"UTF-8 decode error: {e}")
-            logger.debug(f"Decrypted hex: {decrypted_bytes.hex()}")
-            logger.debug(f"First 100 bytes: {decrypted_bytes[:100].hex()}")
-            raise
+    try:
+        # Try to decode as UTF-8
+        decrypted_message = decrypted_bytes.decode("utf-8")
+        logger.debug(f"Decrypted message: {decrypted_message}")
+    except UnicodeDecodeError as e:
+        # If UTF-8 decoding fails, log the error and hex dump for debugging
+        logger.debug(f"UTF-8 decode error: {e}")
+        logger.debug(f"Decrypted hex: {decrypted_bytes.hex()}")
+        logger.debug(f"First 100 bytes: {decrypted_bytes[:100].hex()}")
+        raise ValueError(f"Failed to decode decrypted bytes as UTF-8: {e}") from e
 
-        try:
-            # Try to parse as JSON
-            decrypted_payload = json.loads(decrypted_message)
-            return decrypted_payload
-
-        except json.JSONDecodeError as e:
-            logger.debug(f"JSON decode error: {e}")
-            logger.debug(f"Decrypted text: {decrypted_message}")
-            raise
-
-    except Exception as e:
-        logger.debug(f"Error decrypting message: {e}")
-        return None
+    try:
+        # Try to parse as JSON
+        decrypted_payload = json.loads(decrypted_message)
+        return decrypted_payload
+    except json.JSONDecodeError as e:
+        logger.debug(f"JSON decode error: {e}")
+        logger.debug(f"Decrypted text: {decrypted_message}")
+        raise ValueError(f"Failed to parse decrypted message as JSON: {e}") from e
