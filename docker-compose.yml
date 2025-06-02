@@ -1,0 +1,26 @@
+version: "3.8"
+
+services:
+  mqtt-latency-test:
+    build: .
+    container_name: mqtt-latency-test
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount a named volume for persistent database storage
+      # - mqtt_data:/app/data
+      # Or uncomment below to use a bind mount to your local directory
+      - ./data:/app/data
+    environment:
+      - DATABASE_PATH=/app/data/database.db
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  mqtt_data:
+    driver: local
