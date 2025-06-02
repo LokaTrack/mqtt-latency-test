@@ -2,8 +2,11 @@ import json
 import binascii
 import struct
 import os
+import logging
 from dotenv import load_dotenv
 from Crypto.Util.strxor import strxor
+
+logger = logging.getLogger("uvicorn.error")
 
 load_dotenv()
 
@@ -131,13 +134,13 @@ def decrypt_message(encrypted_hex_message: str, key=HEX_MQTT_ENCRYPTION_KEY):
         try:
             # Try to decode as UTF-8
             decrypted_message = decrypted_bytes.decode("utf-8")
-            print(f"Decrypted message: {decrypted_message}")
+            logger.debug(f"Decrypted message: {decrypted_message}")
 
         except UnicodeDecodeError as e:
             # If UTF-8 decoding fails, log the error and hex dump for debugging
-            print(f"UTF-8 decode error: {e}")
-            print(f"Decrypted hex: {decrypted_bytes.hex()}")
-            print(f"First 100 bytes: {decrypted_bytes[:100].hex()}")
+            logger.debug(f"UTF-8 decode error: {e}")
+            logger.debug(f"Decrypted hex: {decrypted_bytes.hex()}")
+            logger.debug(f"First 100 bytes: {decrypted_bytes[:100].hex()}")
             raise
 
         try:
@@ -146,10 +149,10 @@ def decrypt_message(encrypted_hex_message: str, key=HEX_MQTT_ENCRYPTION_KEY):
             return decrypted_payload
 
         except json.JSONDecodeError as e:
-            print(f"JSON decode error: {e}")
-            print(f"Decrypted text: {decrypted_message}")
+            logger.debug(f"JSON decode error: {e}")
+            logger.debug(f"Decrypted text: {decrypted_message}")
             raise
 
     except Exception as e:
-        print(f"Error decrypting message: {e}")
+        logger.debug(f"Error decrypting message: {e}")
         return None

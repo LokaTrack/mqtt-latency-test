@@ -1,7 +1,17 @@
 from fastapi import APIRouter, Request
 from ..handlers import save_message_published
-from ..utils import ntp_sync, get_ntp_timestamp, get_ntp_datetime
+from ..utils import (
+    ntp_sync,
+    get_ntp_timestamp,
+    get_ntp_datetime,
+    create_connection,
+    close_connection,
+)
 import json
+import sqlite3
+import logging
+
+logger = logging.getLogger("uvicorn.error")
 
 router = APIRouter(prefix="/message", tags=["message"])
 
@@ -20,7 +30,7 @@ async def message_published(request: Request):
         result = await save_message_published(payload)
         return result
     except Exception as e:
-        print(f"Error processing request: {e}")
+        logger.debug(f"Error processing request: {e}")
         return {"status": "error", "message": str(e)}
 
 
@@ -70,3 +80,53 @@ async def get_ntp_status():
 
     except Exception as e:
         return {"status": "error", "message": f"Failed to get NTP status: {str(e)}"}
+
+
+@router.get("/data")
+async def get_latency_data():
+    """
+    Get all latency test data from the first_case table.
+    """
+    try:
+        conn = create_connection()
+        if not conn:
+            return {"status": "error", "message": "Failed to connect to database"}
+
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT id, iteration, payload_timestamp_iso, payload_timestamp_epoch, 
+                   server_timestamp_iso, server_timestamp_epoch, difference, created_at
+            FROM first_case 
+            ORDER BY created_at DESC
+        """
+        )
+
+        rows = cursor.fetchall()
+        close_connection(conn)
+
+        # Convert to list of dictionaries
+        data = []
+        for row in rows:
+            data.append(
+                {
+                    "id": row[0],
+                    "iteration": row[1],
+                    "payload_timestamp_iso": row[2],
+                    "payload_timestamp_epoch": row[3],
+                    "server_timestamp_iso": row[4],
+                    "server_timestamp_epoch": row[5],
+                    "difference_seconds": row[6],
+                    "created_at": row[7],
+                }
+            )
+
+        return {
+            "status": "success",
+            "message": f"Retrieved {len(data)} records",
+            "data": data,
+        }
+
+    except Exception as e:
+        logger.debug(f"Error retrieving data: {e}")
+        return {"status": "error", "message": str(e)}

@@ -2,8 +2,11 @@ import asyncio
 import socket
 import struct
 import time
+import logging
 from typing import Optional
 from datetime import datetime, timedelta, timezone
+
+logger = logging.getLogger("uvicorn.error")
 
 
 class NTPSync:
@@ -81,10 +84,10 @@ class NTPSync:
             self.time_offset = ntp_time - local_time
             self.last_sync_time = local_time
 
-            print(f"NTP sync successful. Offset: {self.time_offset:.3f}s")
+            logger.debug(f"NTP sync successful. Offset: {self.time_offset:.3f}s")
 
         except Exception as e:
-            print(f"NTP sync failed: {e}")
+            logger.debug(f"NTP sync failed: {e}")
             # If sync fails, we'll use local time (offset = 0)
             if self.time_offset is None:
                 self.time_offset = 0.0

@@ -1,8 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .routes import message_router
-from .utils import ntp_sync
+from .utils import ntp_sync, initialize_database
 import asyncio
+import logging
+
+logger = logging.getLogger("uvicorn.error")
 
 app = FastAPI()
 app.add_middleware(
@@ -23,7 +26,7 @@ async def background_ntp_sync():
         try:
             await ntp_sync.get_ntp_timestamp()  # This will sync if needed
         except Exception as e:
-            print(f"Background NTP sync failed: {e}")
+            logger.debug(f"Background NTP sync failed: {e}")
 
         # Wait 25 seconds before next sync (less than 30s cache duration)
         await asyncio.sleep(25)
@@ -32,9 +35,16 @@ async def background_ntp_sync():
 @app.on_event("startup")
 async def startup_event():
     """
-    Perform initial NTP synchronization on server startup.
+    Perform initial setup on server startup.
     """
     try:
+        # Initialize database and create tables
+        database_initialized = initialize_database()
+        if database_initialized:
+            logger.debug("Database initialized successfully")
+        else:
+            logger.debug("Warning: Database initialization failed")
+
         # Perform initial NTP sync
         await ntp_sync.get_ntp_timestamp()
 
@@ -42,7 +52,7 @@ async def startup_event():
         asyncio.create_task(background_ntp_sync())
 
     except Exception as e:
-        print(f"Startup NTP sync failed: {e}")
+        logger.debug(f"Startup initialization failed: {e}")
 
 
 @app.get("/")
