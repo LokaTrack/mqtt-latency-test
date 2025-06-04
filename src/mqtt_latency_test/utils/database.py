@@ -1,9 +1,12 @@
 import sqlite3
 import os
 import logging
+from dotenv import load_dotenv
 from typing import Optional
 
 logger = logging.getLogger("uvicorn.error")
+
+load_dotenv()
 
 # Get database file path from environment variable or use default
 DATABASE_PATH = os.getenv("DATABASE_PATH", "database.db")
