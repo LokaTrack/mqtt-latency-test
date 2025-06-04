@@ -17,9 +17,11 @@ if __name__ == "__main__":
     ]:
         log_level = "info"
 
+    port = int(os.getenv("PORT", "8000"))
+
     uvicorn.run(
         "src.mqtt_latency_test:app",
         host="0.0.0.0",
-        port=8001,
+        port=port,
         log_level=log_level,
     )
